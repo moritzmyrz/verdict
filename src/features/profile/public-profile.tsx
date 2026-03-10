@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { api } from "~/trpc/server";
 
 type Props = {
@@ -10,8 +13,10 @@ export async function PublicProfile({ username }: Props) {
   const data = await api.profile.getPublic({ username });
   if (!data) {
     return (
-      <div className="mx-auto max-w-4xl p-6 text-zinc-100">
-        <p>Profile not found.</p>
+      <div className="mx-auto max-w-4xl p-6">
+        <Card>
+          <CardContent className="p-6 text-sm text-muted-foreground">Profile not found.</CardContent>
+        </Card>
       </div>
     );
   }
@@ -27,47 +32,59 @@ export async function PublicProfile({ username }: Props) {
   );
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-6 text-zinc-100">
-      <header className="rounded-xl border border-white/10 bg-zinc-900 p-4">
-        <h1 className="text-2xl font-semibold">{data.profile.username}</h1>
-        <p className="text-sm text-zinc-400">{data.profile.bio ?? "No bio yet."}</p>
-        <p className="mt-2 text-sm text-zinc-300">
+    <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{data.profile.username}</CardTitle>
+          <CardDescription>{data.profile.bio ?? "No bio yet."}</CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
           W/L/D: {totalStats.wins}/{totalStats.losses}/{totalStats.draws}
-        </p>
-      </header>
+        </CardContent>
+      </Card>
 
-      <section className="rounded-xl border border-white/10 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-lg font-medium">Ratings</h2>
-        <ul className="grid gap-2 sm:grid-cols-2">
-          {data.ratings.map((rating) => (
-            <li key={rating.id} className="rounded-md border border-white/10 px-3 py-2 text-sm">
-              <span className="capitalize">{rating.timeClass}</span>: {rating.value}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Ratings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex flex-wrap gap-2">
+            {data.ratings.map((rating) => (
+              <li key={rating.id}>
+                <Badge variant="secondary" className="capitalize">
+                  {rating.timeClass}: {rating.value}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
 
-      <section className="rounded-xl border border-white/10 bg-zinc-900 p-4">
-        <h2 className="mb-3 text-lg font-medium">Recent games</h2>
-        <ul className="space-y-2">
-          {data.recentGames.map((game) => (
-            <li
-              key={game.gameId}
-              className="flex items-center justify-between rounded-md border border-white/10 px-3 py-2 text-sm"
-            >
-              <div>
-                <p className="capitalize">
-                  {game.timeClass} - {game.result ?? "pending"}
-                </p>
-                <p className="text-zinc-400">{game.terminationReason ?? "in progress"}</p>
-              </div>
-              <Link href={`/game/${game.gameId}`} className="text-blue-400 hover:text-blue-300">
-                View
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Recent games</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {data.recentGames.map((game) => (
+              <li
+                key={game.gameId}
+                className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+              >
+                <div>
+                  <p className="capitalize">
+                    {game.timeClass} - {game.result ?? "pending"}
+                  </p>
+                  <p className="text-muted-foreground">{game.terminationReason ?? "in progress"}</p>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/game/${game.gameId}`}>View</Link>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }

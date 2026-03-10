@@ -103,14 +103,14 @@ export const lobbyRouter = createTRPCRouter({
             userId: lobby.hostUserId,
             color: hostColor,
             remainingMs: lobby.baseMs,
-            lastClockStartedAt: hostColor === "white" ? new Date() : null,
+            lastClockStartedAt: null,
           },
           {
             gameId: createdGame.id,
             userId: ctx.session.user.id,
             color: guestColor,
             remainingMs: lobby.baseMs,
-            lastClockStartedAt: hostColor === "black" ? new Date() : null,
+            lastClockStartedAt: null,
           },
         ]);
 

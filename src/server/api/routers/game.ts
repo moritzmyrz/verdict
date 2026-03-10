@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { Chess } from "chess.js";
 import { z } from "zod";
 
@@ -12,6 +12,7 @@ import {
   games,
   gameLobbies,
   moves,
+  ratings,
   type colorEnum,
 } from "~/server/db/schema";
 import {
@@ -25,6 +26,7 @@ type RatingResult = {
   white: { before: number; after: number; delta: number };
   black: { before: number; after: number; delta: number };
 };
+const FIRST_MOVE_GRACE_MS = 30_000;
 
 const moveInput = z.object({
   gameId: z.string().uuid(),
@@ -36,15 +38,19 @@ const moveInput = z.object({
 function normalizeClock(args: {
   remainingMs: number;
   lastClockStartedAt: Date | null;
+  firstMoveClockStartsAt: Date | null;
   isTurn: boolean;
   now: Date;
 }) {
   if (!args.isTurn) {
     return args.remainingMs;
   }
+
+  const clockStartedAt = args.lastClockStartedAt ?? args.firstMoveClockStartsAt;
+
   return computeRemainingMs({
     remainingMs: args.remainingMs,
-    lastClockStartedAt: args.lastClockStartedAt,
+    lastClockStartedAt: clockStartedAt,
     now: args.now,
   });
 }
@@ -66,6 +72,14 @@ export const gameRouter = createTRPCRouter({
 
       const participants = await ctx.db.query.gameParticipants.findMany({
         where: eq(gameParticipants.gameId, input.gameId),
+        with: {
+          user: {
+            columns: {
+              id: true,
+              name: true,
+            },
+          },
+        },
       });
 
       const gameMoves = await ctx.db.query.moves.findMany({
@@ -74,11 +88,29 @@ export const gameRouter = createTRPCRouter({
       });
 
       const now = new Date();
+      const firstMoveClockStartsAt =
+        game.startedAt && gameMoves.length === 0
+          ? new Date(game.startedAt.getTime() + FIRST_MOVE_GRACE_MS)
+          : null;
+      const userIds = participants.map((participant) => participant.userId);
+      const ratingRows = userIds.length
+        ? await ctx.db
+            .select({
+              userId: ratings.userId,
+              value: ratings.value,
+            })
+            .from(ratings)
+            .where(and(eq(ratings.timeClass, game.timeClass), inArray(ratings.userId, userIds)))
+        : [];
+      const ratingByUserId = new Map(ratingRows.map((row) => [row.userId, row.value]));
       const withClocks = participants.map((participant) => ({
         ...participant,
+        displayName: participant.user?.name ?? "Player",
+        rating: ratingByUserId.get(participant.userId) ?? 1200,
         remainingMsLive: normalizeClock({
           remainingMs: participant.remainingMs,
           lastClockStartedAt: participant.lastClockStartedAt,
+          firstMoveClockStartsAt,
           isTurn: game.turnColor === participant.color && game.status === "active",
           now,
         }),
@@ -88,6 +120,8 @@ export const gameRouter = createTRPCRouter({
         game,
         participants: withClocks,
         moves: gameMoves,
+        firstMoveGraceMs: FIRST_MOVE_GRACE_MS,
+        firstMoveClockStartsAt,
       };
     }),
 
@@ -118,9 +152,18 @@ export const gameRouter = createTRPCRouter({
       throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "MISSING_OPPONENT" });
     }
 
+    const existingMoves = await ctx.db.query.moves.findMany({
+      where: eq(moves.gameId, game.id),
+      columns: { ply: true },
+      orderBy: [asc(moves.ply)],
+    });
+    const firstMoveClockStartsAt =
+      game.startedAt && existingMoves.length === 0
+        ? new Date(game.startedAt.getTime() + FIRST_MOVE_GRACE_MS)
+        : null;
     const effectiveRemaining = computeRemainingMs({
       remainingMs: me.remainingMs,
-      lastClockStartedAt: me.lastClockStartedAt,
+      lastClockStartedAt: me.lastClockStartedAt ?? firstMoveClockStartsAt,
       now,
     });
 
@@ -141,11 +184,7 @@ export const gameRouter = createTRPCRouter({
 
     const nextTurn = chess.turn() === "w" ? "white" : "black";
     const moverRemaining = effectiveRemaining + game.incrementMs;
-    const ply = (await ctx.db.query.moves.findMany({
-      where: eq(moves.gameId, game.id),
-      columns: { ply: true },
-      orderBy: [asc(moves.ply)],
-    })).length + 1;
+    const ply = existingMoves.length + 1;
 
     const terminalReason = chess.isGameOver()
       ? chess.isCheckmate()

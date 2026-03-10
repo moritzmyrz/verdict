@@ -14,6 +14,7 @@ Verdict is a modern competitive chess platform built with the T3 stack, focused 
 ## Product Scope
 
 ### MVP (Implemented Foundation)
+
 - Authentication and session identity
 - Lobby create/join via invite code
 - Live 1v1 game state endpoints
@@ -25,6 +26,7 @@ Verdict is a modern competitive chess platform built with the T3 stack, focused 
 - Profile routes and initial profile pages
 
 ### Post-MVP
+
 - Matchmaking queue
 - Leaderboards
 - Presence and richer social features
@@ -46,6 +48,8 @@ ablyChannel --> clientB
 clientB -->|rehydrate if needed| trpcApi
 ```
 
+
+
 ### Game Lifecycle
 
 ```mermaid
@@ -56,7 +60,10 @@ active --> finished
 active --> aborted
 ```
 
+
+
 Terminal reason model:
+
 - `checkmate`
 - `stalemate`
 - `draw_agreement`
@@ -97,32 +104,40 @@ Terminal reason model:
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 20+
 - `pnpm` 8+
 - Docker or Podman (for local PostgreSQL)
 
 ### 1) Install dependencies
+
 - `pnpm install`
 
 ### 2) Configure env
+
 - `cp .env.example .env`
 - Fill in:
-  - `BETTER_AUTH_GITHUB_CLIENT_ID`
-  - `BETTER_AUTH_GITHUB_CLIENT_SECRET`
   - `BETTER_AUTH_SECRET`
   - `DATABASE_URL` (default works with local container script)
+  - Optional for GitHub OAuth:
+    - `BETTER_AUTH_GITHUB_CLIENT_ID`
+    - `BETTER_AUTH_GITHUB_CLIENT_SECRET`
 
 ### 3) Start PostgreSQL
+
 - `./start-database.sh`
 
 ### 4) Apply schema
+
 - `pnpm db:push`
 
 ### 5) Run the app
+
 - `pnpm dev`
 - Open [http://localhost:3000](http://localhost:3000)
 
 ### Useful commands
+
 - `pnpm typecheck`
 - `SKIP_ENV_VALIDATION=1 pnpm lint`
 - `pnpm db:studio`
@@ -131,8 +146,8 @@ Terminal reason model:
 
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
-- `BETTER_AUTH_GITHUB_CLIENT_ID`
-- `BETTER_AUTH_GITHUB_CLIENT_SECRET`
+- `BETTER_AUTH_GITHUB_CLIENT_ID` (optional, enables GitHub sign-in)
+- `BETTER_AUTH_GITHUB_CLIENT_SECRET` (optional, enables GitHub sign-in)
 - `ABLY_API_KEY` (optional in local MVP)
 - `NEXT_PUBLIC_ABLY_KEY` (optional in local MVP)
 
@@ -143,9 +158,3 @@ Terminal reason model:
 3. Ratings and profile progression
 4. UI polish and portfolio assets
 
-## Suggested Portfolio Assets
-
-- Gameplay GIF from `/play` -> `/game/[gameId]` flow
-- Profile page screenshot with ratings and recent games
-- Architecture diagrams from this README
-- Brief tradeoff notes: managed realtime vs custom WebSocket, Elo vs Glicko

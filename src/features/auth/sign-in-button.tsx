@@ -1,12 +1,12 @@
 "use client";
 
+import { Button } from "~/components/ui/button";
 import { authClient } from "~/server/better-auth/client";
 
 export function SignInButton() {
   return (
-    <button
+    <Button
       type="button"
-      className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium hover:bg-blue-600"
       onClick={async () => {
         await authClient.signIn.social({
           provider: "github",
@@ -15,6 +15,6 @@ export function SignInButton() {
       }}
     >
       Sign in with GitHub
-    </button>
+    </Button>
   );
 }

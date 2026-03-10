@@ -13,7 +13,7 @@ export function computeRemainingMs({
     return remainingMs;
   }
 
-  const elapsed = now.getTime() - lastClockStartedAt.getTime();
+  const elapsed = Math.max(now.getTime() - lastClockStartedAt.getTime(), 0);
   return Math.max(remainingMs - elapsed, 0);
 }
 

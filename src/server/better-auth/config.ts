@@ -14,13 +14,16 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
-  socialProviders: {
-    github: {
-      clientId: env.BETTER_AUTH_GITHUB_CLIENT_ID,
-      clientSecret: env.BETTER_AUTH_GITHUB_CLIENT_SECRET,
-      redirectURI: `${baseUrl}/api/auth/callback/github`,
-    },
-  },
+  socialProviders:
+    env.BETTER_AUTH_GITHUB_CLIENT_ID && env.BETTER_AUTH_GITHUB_CLIENT_SECRET
+      ? {
+          github: {
+            clientId: env.BETTER_AUTH_GITHUB_CLIENT_ID,
+            clientSecret: env.BETTER_AUTH_GITHUB_CLIENT_SECRET,
+            redirectURI: `${baseUrl}/api/auth/callback/github`,
+          },
+        }
+      : {},
 });
 
 export type Session = typeof auth.$Infer.Session;
