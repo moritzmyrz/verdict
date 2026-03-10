@@ -77,6 +77,7 @@ export const gameRouter = createTRPCRouter({
             columns: {
               id: true,
               name: true,
+              image: true,
             },
           },
         },
@@ -431,13 +432,30 @@ export const gameRouter = createTRPCRouter({
   offerDraw: protectedProcedure
     .input(z.object({ gameId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
+      const game = await ctx.db.query.games.findFirst({
+        where: eq(games.id, input.gameId),
+      });
+      if (!game) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "GAME_NOT_FOUND" });
+      }
+
+      assertGameIsMutable(game.status);
+
+      const participants = await ctx.db.query.gameParticipants.findMany({
+        where: eq(gameParticipants.gameId, game.id),
+      });
+      const me = participants.find((participant) => participant.userId === ctx.session.user.id);
+      if (!me) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "NOT_GAME_PARTICIPANT" });
+      }
+
       await ctx.db
         .update(games)
         .set({
           drawOfferedByUserId: ctx.session.user.id,
           updatedAt: new Date(),
         })
-        .where(eq(games.id, input.gameId));
+        .where(eq(games.id, game.id));
       return { ok: true };
     }),
 
@@ -458,6 +476,16 @@ export const gameRouter = createTRPCRouter({
       if (!game.drawOfferedByUserId) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "NO_DRAW_OFFER" });
       }
+      const participants = await ctx.db.query.gameParticipants.findMany({
+        where: eq(gameParticipants.gameId, game.id),
+      });
+      const me = participants.find((participant) => participant.userId === ctx.session.user.id);
+      if (!me) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "NOT_GAME_PARTICIPANT" });
+      }
+      if (ctx.session.user.id === game.drawOfferedByUserId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "DRAW_OFFER_ALREADY_MADE" });
+      }
 
       if (!input.accept) {
         await ctx.db
@@ -467,9 +495,6 @@ export const gameRouter = createTRPCRouter({
         return { accepted: false };
       }
 
-      const participants = await ctx.db.query.gameParticipants.findMany({
-        where: eq(gameParticipants.gameId, game.id),
-      });
       const white = participants.find((participant) => participant.color === "white");
       const black = participants.find((participant) => participant.color === "black");
       if (!white || !black) {

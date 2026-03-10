@@ -10,6 +10,7 @@ type Props = {
   fen: string;
   canMove: boolean;
   orientation: "white" | "black";
+  lastMove?: { from: string; to: string } | null;
   onMove: (move: { from: string; to: string; promotion?: "q" | "r" | "b" | "n" }) => void;
 };
 
@@ -39,9 +40,10 @@ function isPromotionMove(from: string, to: string, pieceType: PieceSymbol) {
   return destinationRank === 1 || destinationRank === 8;
 }
 
-export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
+export function Chessboard({ fen, canMove, orientation, lastMove, onMove }: Props) {
   const chess = useMemo(() => new Chess(fen), [fen]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [draggedFrom, setDraggedFrom] = useState<string | null>(null);
   const files = orientation === "white" ? FILES : [...FILES].reverse();
   const ranks = orientation === "white" ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8];
   const legalTargets = useMemo(() => {
@@ -61,6 +63,7 @@ export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
 
   useEffect(() => {
     setSelected(null);
+    setDraggedFrom(null);
   }, [fen]);
 
   const checkedKingSquare = useMemo(() => {
@@ -85,10 +88,17 @@ export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
     return null;
   }, [chess]);
 
+  const tryMove = (from: string, to: string) => {
+    const selectedPiece = getPiece(chess, from);
+    const promotion =
+      selectedPiece && isPromotionMove(from, to, selectedPiece.type) ? "q" : undefined;
+    onMove({ from, to, promotion });
+    setSelected(null);
+    setDraggedFrom(null);
+  };
+
   return (
-    <div
-      className="grid grid-cols-8 overflow-hidden rounded-xl border border-border"
-    >
+    <div className="grid grid-cols-8 overflow-hidden rounded-xl border border-border shadow-sm">
       {ranks.map((rank) =>
         files.map((file, fileIdx) => {
           const square = `${file}${rank}`;
@@ -97,28 +107,25 @@ export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
           const isLegalTarget = legalTargets.has(square);
           const isDark = (rank + fileIdx) % 2 === 0;
           const isCheckedKing = checkedKingSquare === square;
+          const isLastMoveSquare = !!lastMove && (lastMove.from === square || lastMove.to === square);
           const canSelectPiece = !!piece && piece.color === chess.turn();
 
           return (
             <button
               key={square}
               type="button"
-              className={`relative flex aspect-square items-center justify-center transition-colors ${
+              className={`relative flex aspect-square items-center justify-center transition-colors duration-150 ${
                 isDark ? "bg-zinc-500/95" : "bg-zinc-200"
-              } ${
-                isSelected ? "bg-blue-500/25" : ""
-              } ${isLegalTarget ? "bg-emerald-500/20" : ""} ${isCheckedKing ? "bg-red-500/35" : ""}`}
+              } ${isLastMoveSquare ? "ring-1 ring-amber-400/70 ring-inset" : ""} ${
+                isSelected ? "bg-primary/25" : ""
+              } ${isLegalTarget ? "bg-emerald-500/20" : ""} ${
+                isCheckedKing ? "bg-red-500/35 ring-2 ring-red-500/70 ring-inset" : ""
+              }`}
               onClick={() => {
                 if (!canMove) return;
 
                 if (selected && isLegalTarget) {
-                  const selectedPiece = getPiece(chess, selected);
-                  const promotion =
-                    selectedPiece && isPromotionMove(selected, square, selectedPiece.type)
-                      ? "q"
-                      : undefined;
-                  onMove({ from: selected, to: square, promotion });
-                  setSelected(null);
+                  tryMove(selected, square);
                   return;
                 }
 
@@ -134,6 +141,35 @@ export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
 
                 setSelected(null);
               }}
+              onDragOver={(event) => {
+                if (!canMove) return;
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!canMove || !draggedFrom) return;
+                event.preventDefault();
+                const from = event.dataTransfer.getData("text/plain") || draggedFrom;
+                if (!from || from === square) {
+                  setDraggedFrom(null);
+                  return;
+                }
+
+                const dropTargets = new Set(
+                  chess
+                    .moves({
+                      square: from as Square,
+                      verbose: true,
+                    })
+                    .map((move) => move.to),
+                );
+
+                if (dropTargets.has(square as Square)) {
+                  tryMove(from, square);
+                  return;
+                }
+
+                setDraggedFrom(null);
+              }}
             >
               {piece ? (
                 <Image
@@ -141,7 +177,20 @@ export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
                   alt={`${piece.color === "w" ? "White" : "Black"} ${piece.type}`}
                   width={76}
                   height={76}
-                  className="pointer-events-none m-auto h-[78%] w-[78%] select-none drop-shadow-md"
+                  draggable={canMove && canSelectPiece}
+                  onDragStart={(event) => {
+                    if (!canMove || !canSelectPiece) {
+                      event.preventDefault();
+                      return;
+                    }
+                    event.dataTransfer.setData("text/plain", square);
+                    setDraggedFrom(square);
+                    setSelected(square);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedFrom(null);
+                  }}
+                  className="m-auto h-[78%] w-[78%] select-none drop-shadow-md"
                 />
               ) : null}
 
@@ -151,6 +200,10 @@ export function Chessboard({ fen, canMove, orientation, onMove }: Props) {
 
               {isLegalTarget && piece ? (
                 <span className="pointer-events-none absolute inset-1 rounded-full border-2 border-foreground/35" />
+              ) : null}
+
+              {isCheckedKing ? (
+                <span className="pointer-events-none absolute inset-1 rounded-md border border-red-200/90" />
               ) : null}
 
               {(rank === ranks[ranks.length - 1] || fileIdx === 0) && (

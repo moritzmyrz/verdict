@@ -16,7 +16,7 @@ export default async function MyGamesPage() {
   const games = await api.history.listMyGames({ limit: 30 });
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-5xl space-y-4 p-6">
+    <div className="mx-auto min-h-screen w-full max-w-6xl space-y-4 p-4 sm:p-6">
       <h1 className="text-2xl font-semibold">My games</h1>
       {games.length === 0 ? (
         <Card>
@@ -25,22 +25,31 @@ export default async function MyGamesPage() {
           </CardContent>
         </Card>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {games.map((game) => (
             <li key={game.gameId}>
-              <Card>
-                <CardHeader className="flex flex-row items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base capitalize">
-                      {game.timeClass} - {game.result ?? "in progress"}
+              <Card className="border-border/70">
+                <CardHeader className="flex flex-row items-center justify-between gap-4 py-4">
+                  <div className="space-y-0.5">
+                    <CardTitle className="text-base">
+                      {game.opponentName ?? "Opponent"} ·{" "}
+                      <span className="capitalize text-muted-foreground">{game.myColor}</span>
                     </CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {Math.round(game.baseMs / 60000)}+{Math.round(game.incrementMs / 1000)}
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {game.timeClass} · {Math.round(game.baseMs / 60000)}+{Math.round(game.incrementMs / 1000)}
                     </p>
                   </div>
-                  <Badge variant="outline">{game.terminationReason ?? "active"}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={game.rated ? "default" : "secondary"}>
+                      {game.rated ? "Rated" : "Casual"}
+                    </Badge>
+                    <Badge variant="outline">{game.terminationReason ?? "active"}</Badge>
+                  </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="flex items-center justify-between pt-0">
+                  <p className="text-sm capitalize text-muted-foreground">
+                    Result: {game.result ?? "in progress"}
+                  </p>
                   <Button asChild variant="outline" size="sm">
                     <Link href={`/game/${game.gameId}`}>Open</Link>
                   </Button>
