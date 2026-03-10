@@ -2,102 +2,85 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { LatestPost } from "~/app/_components/post";
+import { SignInButton } from "~/features/auth/sign-in-button";
 import { auth } from "~/server/better-auth";
 import { getSession } from "~/server/better-auth/server";
-import { api, HydrateClient } from "~/trpc/server";
 
 export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
   const session = await getSession();
 
-  if (session) {
-    void api.post.getLatest.prefetch();
-  }
-
   return (
-    <HydrateClient>
-      <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-        <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-          <h1 className="text-5xl font-extrabold tracking-tight sm:text-[5rem]">
-            Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-          </h1>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-            <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/usage/first-steps"
-              target="_blank"
-            >
-              <h3 className="text-2xl font-bold">First Steps →</h3>
-              <div className="text-lg">
-                Just the basics - Everything you need to know to set up your
-                database and authentication.
-              </div>
+    <main className="min-h-screen bg-zinc-950 text-zinc-100">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 p-6">
+        <header className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-900 px-4 py-3">
+          <h1 className="text-xl font-semibold">Verdict</h1>
+          {!session ? (
+            <SignInButton />
+          ) : (
+            <form className="flex items-center gap-2">
+              <span className="text-sm text-zinc-300">{session.user?.name}</span>
+              <button
+                className="rounded-md bg-zinc-800 px-3 py-2 text-sm hover:bg-zinc-700"
+                formAction={async () => {
+                  "use server";
+                  await auth.api.signOut({
+                    headers: await headers(),
+                  });
+                  redirect("/");
+                }}
+              >
+                Sign out
+              </button>
+            </form>
+          )}
+        </header>
+
+        <section className="rounded-xl border border-white/10 bg-zinc-900 p-8">
+          <p className="mb-2 text-sm uppercase tracking-wide text-zinc-400">
+            Competitive chess platform
+          </p>
+          <h2 className="text-4xl font-semibold">Play fast, track progress, build your profile.</h2>
+          <p className="mt-4 max-w-2xl text-zinc-300">
+            Verdict is a profile-first multiplayer chess platform with timed games, rating progression,
+            match history, and practical production architecture.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/play" className="rounded-md bg-blue-700 px-4 py-2 text-sm hover:bg-blue-600">
+              Play now
+            </Link>
+            <Link href="/me/games" className="rounded-md bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700">
+              Match history
             </Link>
             <Link
-              className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 hover:bg-white/20"
-              href="https://create.t3.gg/en/introduction"
-              target="_blank"
+              href="/me/settings"
+              className="rounded-md bg-zinc-800 px-4 py-2 text-sm hover:bg-zinc-700"
             >
-              <h3 className="text-2xl font-bold">Documentation →</h3>
-              <div className="text-lg">
-                Learn more about Create T3 App, the libraries it uses, and how
-                to deploy it.
-              </div>
+              Profile settings
             </Link>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              {hello ? hello.greeting : "Loading tRPC query..."}
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-zinc-900 p-4">
+            <p className="text-sm text-zinc-400">Timed multiplayer</p>
+            <p className="mt-2 text-sm text-zinc-200">
+              Authoritative clocks and legal move validation.
             </p>
-
-            <div className="flex flex-col items-center justify-center gap-4">
-              <p className="text-center text-2xl text-white">
-                {session && <span>Logged in as {session.user?.name}</span>}
-              </p>
-              {!session ? (
-                <form>
-                  <button
-                    className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
-                    formAction={async () => {
-                      "use server";
-                      const res = await auth.api.signInSocial({
-                        body: {
-                          provider: "github",
-                          callbackURL: "/",
-                        },
-                      });
-                      if (!res.url) {
-                        throw new Error("No URL returned from signInSocial");
-                      }
-                      redirect(res.url);
-                    }}
-                  >
-                    Sign in with Github
-                  </button>
-                </form>
-              ) : (
-                <form>
-                  <button
-                    className="rounded-full bg-white/10 px-10 py-3 font-semibold no-underline transition hover:bg-white/20"
-                    formAction={async () => {
-                      "use server";
-                      await auth.api.signOut({
-                        headers: await headers(),
-                      });
-                      redirect("/");
-                    }}
-                  >
-                    Sign out
-                  </button>
-                </form>
-              )}
-            </div>
           </div>
-
-          {session?.user && <LatestPost />}
-        </div>
-      </main>
-    </HydrateClient>
+          <div className="rounded-xl border border-white/10 bg-zinc-900 p-4">
+            <p className="text-sm text-zinc-400">Meaningful profiles</p>
+            <p className="mt-2 text-sm text-zinc-200">
+              Ratings per time class with visible game history.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-zinc-900 p-4">
+            <p className="text-sm text-zinc-400">Portfolio-grade architecture</p>
+            <p className="mt-2 text-sm text-zinc-200">
+              Next.js + TypeScript + tRPC + Drizzle + Better Auth.
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }

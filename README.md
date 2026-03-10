@@ -1,29 +1,151 @@
-# Create T3 App
+# Verdict
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+Verdict is a modern competitive chess platform built with the T3 stack, focused on real-time timed multiplayer, profile-driven progression, and production-grade reliability. Instead of a simple chessboard demo, Verdict centers on authoritative game state, fair clock handling, rating updates by time control, and meaningful player statistics.
 
-## What's next? How do I make an app with this?
+## Tech Highlights
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- Next.js App Router + TypeScript
+- tRPC end-to-end typed API contracts
+- Drizzle ORM + PostgreSQL relational model
+- Better Auth session and identity model
+- Managed realtime (Ably) event contract
+- Server-authoritative clock and game-result engine
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Product Scope
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+### MVP (Implemented Foundation)
+- Authentication and session identity
+- Lobby create/join via invite code
+- Live 1v1 game state endpoints
+- Server-side move validation with `chess.js`
+- Authoritative clock model (`remainingMs` + `lastClockStartedAt`)
+- Game lifecycle with terminal reasons
+- Elo ratings by time class (`bullet`, `blitz`, `rapid`, `classical`)
+- Player statistics and game history routes
+- Profile routes and initial profile pages
 
-## Learn More
+### Post-MVP
+- Matchmaking queue
+- Leaderboards
+- Presence and richer social features
+- Spectator mode
+- Analysis board and puzzles
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+## Architecture
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+### Realtime Flow
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+```mermaid
+flowchart LR
+clientA -->|submitMove tRPC mutation| trpcApi
+trpcApi --> gameService
+gameService --> chessRules
+gameService --> dbPostgres
+gameService -->|publish event| ablyChannel
+ablyChannel --> clientB
+clientB -->|rehydrate if needed| trpcApi
+```
 
-## How do I deploy this?
+### Game Lifecycle
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+```mermaid
+flowchart LR
+created --> waitingForOpponent
+waitingForOpponent --> active
+active --> finished
+active --> aborted
+```
+
+Terminal reason model:
+- `checkmate`
+- `stalemate`
+- `draw_agreement`
+- `threefold`
+- `fifty_move`
+- `timeout`
+- `resignation`
+- `aborted`
+
+## Repository Structure
+
+- `src/app` - route entry points and pages
+- `src/features/game` - board UI and live game client
+- `src/features/play` - lobby creation/join UI
+- `src/features/profile` - public profile UI
+- `src/server/api/routers` - domain tRPC routers
+- `src/server/services` - game lifecycle, realtime, rating, progression logic
+- `src/server/db` - Drizzle schema and DB client
+- `docs/MVP_SCOPE.md` - explicit MVP scope freeze
+- `docs/REALTIME_ARCHITECTURE.md` - realtime recommendation and event contract
+
+## Core API Procedures
+
+- `lobby.create`
+- `lobby.joinByCode`
+- `lobby.listOpen`
+- `game.getById`
+- `game.submitMove`
+- `game.resign`
+- `game.offerDraw`
+- `game.respondDraw`
+- `game.requestRematch`
+- `profile.upsert`
+- `profile.getPublic`
+- `profile.getMyStats`
+- `history.listMyGames`
+
+## Quick Start
+
+### Prerequisites
+- Node.js 20+
+- `pnpm` 8+
+- Docker or Podman (for local PostgreSQL)
+
+### 1) Install dependencies
+- `pnpm install`
+
+### 2) Configure env
+- `cp .env.example .env`
+- Fill in:
+  - `BETTER_AUTH_GITHUB_CLIENT_ID`
+  - `BETTER_AUTH_GITHUB_CLIENT_SECRET`
+  - `BETTER_AUTH_SECRET`
+  - `DATABASE_URL` (default works with local container script)
+
+### 3) Start PostgreSQL
+- `./start-database.sh`
+
+### 4) Apply schema
+- `pnpm db:push`
+
+### 5) Run the app
+- `pnpm dev`
+- Open [http://localhost:3000](http://localhost:3000)
+
+### Useful commands
+- `pnpm typecheck`
+- `SKIP_ENV_VALIDATION=1 pnpm lint`
+- `pnpm db:studio`
+
+## Environment Variables
+
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_GITHUB_CLIENT_ID`
+- `BETTER_AUTH_GITHUB_CLIENT_SECRET`
+- `ABLY_API_KEY` (optional in local MVP)
+- `NEXT_PUBLIC_ABLY_KEY` (optional in local MVP)
+
+## Milestones
+
+1. Foundation schema + game lifecycle
+2. Live game flow + clocks
+3. Ratings and profile progression
+4. UI polish and portfolio assets
+
+## Suggested Portfolio Assets
+
+- Gameplay GIF from `/play` -> `/game/[gameId]` flow
+- Profile page screenshot with ratings and recent games
+- Architecture diagrams from this README
+- Brief tradeoff notes: managed realtime vs custom WebSocket, Elo vs Glicko
